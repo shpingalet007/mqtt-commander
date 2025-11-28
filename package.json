@@ -1,0 +1,20 @@
+{
+  "name": "mqtt-commander",
+  "version": "0.2.0",
+  "description": "MQTT messaging module with RPC and PUB/SUB",
+  "license": "LGPL-3.0-or-later",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "mqtt": "^5.14.1",
+    "mqtt-match": "^3.0.0",
+    "nanoid": "^5.1.6",
+    "nanoid-dictionary": "^5.0.0"
+  }
+}
