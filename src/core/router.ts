@@ -1,9 +1,4 @@
-import {IClientSubscribeOptions, IClientSubscribeProperties} from "mqtt/build/lib/client";
-
-export type ListenerHandler = (payload: any) => void;
-export type InvocationHandler = (payload: any) => Promise<any> | void;
-
-export type MqttClientSubscribeOptions = IClientSubscribeOptions | IClientSubscribeProperties
+import {InvocationHandler, ListenerHandler, MqttClientSubscribeOptions} from "./types";
 
 export interface ListenerSubscription {
   pattern: string;
@@ -31,9 +26,9 @@ abstract class RouterBase {
   abstract _mountListeners(prefix: string): MountedListenerSubscription[]
 }
 
-export class Router implements RouterBase {
-  private listenerRoutes: ListenerSubscription[] = [];
-  private handlerRoutes: HandlerSubscription[] = [];
+export default class Router implements RouterBase {
+  private readonly listenerRoutes: ListenerSubscription[] = [];
+  private readonly handlerRoutes: HandlerSubscription[] = [];
 
   public on(pattern: string, handler: ListenerHandler, options?: MqttClientSubscribeOptions) {
     const route: ListenerSubscription = { pattern, handler };

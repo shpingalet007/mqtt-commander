@@ -4,7 +4,7 @@
   "description": "MQTT messaging module with RPC and PUB/SUB",
   "license": "LGPL-3.0-or-later",
   "type": "module",
-  "main": "dist/main.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc"
   },

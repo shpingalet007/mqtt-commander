@@ -1,9 +1,10 @@
 import mqtt from "mqtt";
-import {envelopeData, getFullTopic, getIdentified, getReqTopic, getResTopic, markData} from "./preparate";
-import {Client, ObjectPayload} from "./client";
-import {MqttClientSubscribeOptions} from "./router";
+import Client from "./client";
+import {envelopeData, markData} from "./data-enveloper";
+import {getFullTopic, getIdTopic, getReqTopic, getResTopic} from "./topic-protocol";
+import {MqttClientSubscribeOptions, ObjectPayload} from "./types";
 
-export class Agent {
+export default class Agent {
   private readonly client: Client;
   private readonly mClient: mqtt.MqttClient;
   private readonly mSubOpts: mqtt.IClientPublishOptions;
@@ -53,7 +54,7 @@ export class Agent {
 
     console.log('SUBSCRIBING TO', resTopic);
 
-    const idResTopic = getIdentified(resTopic, marked.id);
+    const idResTopic = getIdTopic(resTopic, marked.id);
     await this.mClient.subscribeAsync(idResTopic, prepSubOpts);
 
     const responsePromise = new Promise<T>((resolve, reject) => {

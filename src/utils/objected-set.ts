@@ -1,4 +1,4 @@
-export class ObjectedSet<T> {
+export default class ObjectedSet<T> {
   private set: Set<string>;
 
   constructor() {

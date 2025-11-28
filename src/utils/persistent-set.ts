@@ -1,6 +1,6 @@
-import {ObjectedSet} from "./object-set";
+import ObjectedSet from "./objected-set";
 
-export class PersistentSet<T> extends ObjectedSet<T> {
+export default class PersistentSet<T> extends ObjectedSet<T> {
   private readonly timer: number;
 
   constructor(timer: number) {

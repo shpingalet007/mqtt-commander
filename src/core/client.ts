@@ -1,51 +1,29 @@
+import EventEmitter from "node:events";
 import mqtt, {IConnackPacket} from "mqtt";
 import mqttMatch from "mqtt-match";
-import {Router, ListenerHandler, InvocationHandler} from "./router";
-import EventEmitter from "node:events";
-import {ObjectedSet} from "./object-set";
-import {PersistentSet} from "./persistent-set";
-import {Agent} from "./agent";
-import {
-  convertReqToResTopic,
-  envelopeData,
-  getFullTopic,
-  getIdentified,
-  getReqTopic,
-  getResTopic,
-  markData,
-  unwrapData
-} from "./preparate";
-
-interface RawMessage {
-  topic: string;
-  payload: Buffer;
-}
-
-export interface ObjectPayload {
-  id: string;
-  data: any;
-}
-
-interface ParsedMessage {
-  topic: string;
-  payload: ObjectPayload;
-}
+import Agent from "./agent";
+import ObjectedSet from "../utils/objected-set";
+import PersistentSet from "../utils/persistent-set";
+import Router from "./router";
+import {envelopeData, markData, unwrapData} from "./data-enveloper";
+import {convertReqToResTopic, getIdTopic, getReqTopic, getResTopic} from "./topic-protocol";
+import {InvocationHandler, ListenerHandler, ParsedMessage} from "./types";
 
 abstract class ClientBase {
   abstract use(route: string, router: Router): void;
 }
 
-export class Client implements ClientBase {
+export default class Client implements ClientBase {
   private static readonly PersistedCleanAfter: number = 5 * 60 * 1000;
 
-  private mClient: mqtt.MqttClient;
-  private events: EventEmitter = new EventEmitter();
+  private readonly mClient: mqtt.MqttClient;
+  private readonly events: EventEmitter = new EventEmitter();
 
-  private handlers: Map<string, InvocationHandler> = new Map();
-  private listeners: Map<string, ListenerHandler> = new Map();
-  private responders: Map<string, ListenerHandler> = new Map();
-  private buffered: ObjectedSet<ParsedMessage> = new ObjectedSet();
-  private persisted: ObjectedSet<ParsedMessage> = new PersistentSet(Client.PersistedCleanAfter);
+  private readonly handlers: Map<string, InvocationHandler> = new Map();
+  private readonly listeners: Map<string, ListenerHandler> = new Map();
+  private readonly responders: Map<string, ListenerHandler> = new Map();
+  private readonly buffered: ObjectedSet<ParsedMessage> = new ObjectedSet();
+  private readonly persisted: ObjectedSet<ParsedMessage> = new PersistentSet(Client.PersistedCleanAfter);
 
   private constructor(url: string, opts?: mqtt.IClientOptions) {
     this.mClient = mqtt.connect(url, opts);
@@ -114,7 +92,7 @@ export class Client implements ClientBase {
           const marked = markData(result);
           const envelope = envelopeData(marked);
           const resTopic = convertReqToResTopic(topic);
-          const idResTopic = getIdentified(resTopic, message.payload!.id);
+          const idResTopic = getIdTopic(resTopic, message.payload!.id);
 
           console.log('SEND RESULT', idResTopic, result);
 
