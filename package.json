@@ -3,10 +3,20 @@
   "version": "0.2.0",
   "description": "MQTT messaging module with RPC and PUB/SUB",
   "license": "LGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shpingalet007/mqtt-commander.git"
+  },
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
