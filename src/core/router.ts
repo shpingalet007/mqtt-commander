@@ -1,15 +1,22 @@
 import {InvocationHandler, ListenerHandler, MqttClientSubscribeOptions} from "./types";
 
+export interface PatternParams {
+  name: string;
+  index: number;
+}
+
 export interface ListenerSubscription {
   pattern: string;
   handler: ListenerHandler;
   options?: MqttClientSubscribeOptions,
+  params?: PatternParams[],
 }
 
 export interface HandlerSubscription {
   pattern: string;
   handler: InvocationHandler;
   options?: MqttClientSubscribeOptions,
+  params?: PatternParams[],
 }
 
 export interface MountedListenerSubscription extends ListenerSubscription {
@@ -30,35 +37,68 @@ export default class Router implements RouterBase {
   private readonly listenerRoutes: ListenerSubscription[] = [];
   private readonly handlerRoutes: HandlerSubscription[] = [];
 
-  public on(pattern: string, handler: ListenerHandler, options?: MqttClientSubscribeOptions) {
-    const route: ListenerSubscription = { pattern, handler };
+  private readonly defaultOpts?: MqttClientSubscribeOptions;
 
-    if (options) route.options = options;
+  constructor(opts?: MqttClientSubscribeOptions) {
+    this.defaultOpts = opts;
+  }
+
+  public on(pattern: string, handler: ListenerHandler, opts?: MqttClientSubscribeOptions) {
+    const options = { ...this.defaultOpts, ...opts };
+    const route: ListenerSubscription = { pattern, handler, options };
 
     this.listenerRoutes.push(route);
   }
 
-  public handle(pattern: string, handler: InvocationHandler, options?: MqttClientSubscribeOptions) {
-    const route: HandlerSubscription = { pattern, handler };
-
-    // TODO: ADD RESOLVER HERE... PUBLISH...
-
-    if (options) route.options = options;
+  public handle(pattern: string, handler: InvocationHandler, opts?: MqttClientSubscribeOptions) {
+    const options = { ...this.defaultOpts, ...opts };
+    const route: HandlerSubscription = { pattern, handler, options };
 
     this.handlerRoutes.push(route);
   }
 
+  public async use(route: string, router: Router) {
+    const listeners = router._mountListeners(route);
+    const handlers = router._mountHandlers(route);
+
+    for (const handler of handlers) {
+      const handlerRoute: HandlerSubscription = {
+        pattern: handler.fullPattern,
+        handler: handler.handler,
+      };
+
+      if (handler.options) {
+        handlerRoute.options = handler.options;
+      }
+
+      this.handlerRoutes.push(handlerRoute);
+    }
+
+    for (const listener of listeners) {
+      const listenerRoute: HandlerSubscription = {
+        pattern: listener.fullPattern,
+        handler: listener.handler,
+      };
+
+      if (listener.options) {
+        listenerRoute.options = listener.options;
+      }
+
+      this.listenerRoutes.push(listenerRoute);
+    }
+  }
+
   public _mountListeners(prefix: string): MountedListenerSubscription[] {
-    return this.listenerRoutes.map(route => ({
-      ...route,
-      fullPattern: `${prefix}/${route.pattern}`,
-    }));
+    return this.listenerRoutes.map(route => {
+      const fullPattern = `${prefix}/${route.pattern}`;
+      return { ...route, fullPattern };
+    });
   }
 
   public _mountHandlers(prefix: string): MountedHandlerSubscription[] {
-    return this.handlerRoutes.map(route => ({
-      ...route,
-      fullPattern: `${prefix}/${route.pattern}`,
-    }));
+    return this.handlerRoutes.map(route => {
+      const fullPattern = `${prefix}/${route.pattern}`;
+      return { ...route, fullPattern };
+    });
   }
 }

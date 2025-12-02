@@ -1,8 +1,10 @@
 import getRandomId from "../utils/id-generator";
 import {ObjectPayload} from "./types";
 
-export function markData(data: any): ObjectPayload {
-  return { id: getRandomId(), data };
+export function markData(data?: any): ObjectPayload {
+  const marked: ObjectPayload = { id: getRandomId(), time: Date.now() };
+  if (data !== undefined) marked.data = data;
+  return marked;
 }
 
 export function envelopeData(data: any): string {

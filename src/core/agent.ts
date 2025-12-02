@@ -2,7 +2,7 @@ import mqtt from "mqtt";
 import Client from "./client";
 import {envelopeData, markData} from "./data-enveloper";
 import {getFullTopic, getIdTopic, getReqTopic, getResTopic} from "./topic-protocol";
-import {MqttClientSubscribeOptions, ObjectPayload} from "./types";
+import {MqttClientSubscribeOptions} from "./types";
 
 export default class Agent {
   private readonly client: Client;
@@ -19,6 +19,7 @@ export default class Agent {
     this.route = route;
   }
 
+  // TODO: Make override with 2 or 3 options (message optional)
   public publish(topic: string, message?: any, options?: mqtt.IClientPublishOptions) {
     this.publishAsync(topic, message, options);
     return this;
@@ -30,6 +31,7 @@ export default class Agent {
     const envelope = envelopeData(marked);
     const prepOpts = { ...this.mSubOpts, ...options };
 
+    console.log('PUBLISH', fullTopic, message, prepOpts);
     return this.mClient.publishAsync(fullTopic, envelope, prepOpts);
   }
 
@@ -52,9 +54,9 @@ export default class Agent {
     const prepPubOpts: mqtt.IClientPublishOptions = { ...this.mSubOpts, qos: 1, ...pubOpts };
     const prepSubOpts: MqttClientSubscribeOptions = { ...this.mPubOpts, qos: 1, ...subOpts };
 
-    console.log('SUBSCRIBING TO', resTopic);
-
     const idResTopic = getIdTopic(resTopic, marked.id);
+
+    console.log('SUBSCRIBING TO', idResTopic);
     await this.mClient.subscribeAsync(idResTopic, prepSubOpts);
 
     const responsePromise = new Promise<T>((resolve, reject) => {
@@ -62,15 +64,20 @@ export default class Agent {
         reject(Error('INVOKE_TIMEOUT'));
       }, 5000);
 
-      this.client.handleResponse(fullTopic, marked.id, (payload: ObjectPayload) => {
+      this.client.handleResponse(fullTopic, marked.id, (payload) => {
         this.mClient.unsubscribe(idResTopic);
         resolve(payload.data);
         clearInterval(responseTimer);
       });
     });
 
+    console.log('INVOKING', reqTopic, envelope, prepPubOpts);
     await this.mClient.publishAsync(reqTopic, envelope, prepPubOpts);
 
     return responsePromise;
+  }
+
+  public getRoute() {
+    return this.route;
   }
 }

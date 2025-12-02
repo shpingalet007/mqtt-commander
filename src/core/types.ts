@@ -1,8 +1,19 @@
 import {IClientSubscribeOptions, IClientSubscribeProperties} from "mqtt";
 
+export interface PublicationData {
+  params: Record<string, string>,
+  data?: any
+}
+
+export interface ParamMap {
+  name: string;
+  index: number;
+}
+
 export interface ObjectPayload {
   id: string;
-  data: any;
+  time: number;
+  data?: any;
 }
 
 export interface ParsedMessage {
@@ -10,6 +21,9 @@ export interface ParsedMessage {
   payload: ObjectPayload;
 }
 
-export type ListenerHandler = (payload: any) => void;
-export type InvocationHandler = (payload: any) => Promise<any> | void;
+export type ResponderHandler = (data: any) => void;
+export type ListenerHandler = (pub: PublicationData) => void;
+export type InvocationHandler = (pub: PublicationData) => Promise<any> | any;
 export type MqttClientSubscribeOptions = IClientSubscribeOptions | IClientSubscribeProperties
+
+export type Nullable<T> = T | null;

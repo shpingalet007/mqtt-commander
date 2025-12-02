@@ -1,6 +1,6 @@
 {
   "name": "mqtt-commander",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MQTT messaging module with RPC and PUB/SUB",
   "license": "LGPL-3.0-or-later",
   "repository": {
@@ -13,15 +13,19 @@
     "build": "tsc"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@types/node": "^24.10.1",
     "mqtt": "^5.14.1",
     "mqtt-match": "^3.0.0",
     "nanoid": "^5.1.6",

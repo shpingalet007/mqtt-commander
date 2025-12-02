@@ -4,10 +4,17 @@ import mqttMatch from "mqtt-match";
 import Agent from "./agent";
 import ObjectedSet from "../utils/objected-set";
 import PersistentSet from "../utils/persistent-set";
-import Router from "./router";
-import {envelopeData, markData, unwrapData} from "./data-enveloper";
+import Router, {MountedHandlerSubscription, MountedListenerSubscription} from "./router";
+import {envelopeData, markData} from "./data-enveloper";
 import {convertReqToResTopic, getIdTopic, getReqTopic, getResTopic} from "./topic-protocol";
-import {InvocationHandler, ListenerHandler, ParsedMessage} from "./types";
+import {
+  ListenerHandler,
+  Nullable,
+  ObjectPayload,
+  ParsedMessage,
+  PublicationData, ResponderHandler
+} from "./types";
+import {extractPathParams, mapParams, wilcardParams} from "./topic-params";
 
 abstract class ClientBase {
   abstract use(route: string, router: Router): void;
@@ -19,9 +26,9 @@ export default class Client implements ClientBase {
   private readonly mClient: mqtt.MqttClient;
   private readonly events: EventEmitter = new EventEmitter();
 
-  private readonly handlers: Map<string, InvocationHandler> = new Map();
-  private readonly listeners: Map<string, ListenerHandler> = new Map();
-  private readonly responders: Map<string, ListenerHandler> = new Map();
+  private readonly handlers: Map<string, MountedHandlerSubscription> = new Map();
+  private readonly listeners: Map<string, MountedListenerSubscription> = new Map();
+  private readonly responders: Map<string, ResponderHandler> = new Map();
   private readonly buffered: ObjectedSet<ParsedMessage> = new ObjectedSet();
   private readonly persisted: ObjectedSet<ParsedMessage> = new PersistentSet(Client.PersistedCleanAfter);
 
@@ -36,20 +43,22 @@ export default class Client implements ClientBase {
     this.events.emit('connected', connection);
   }
 
-  private async handleMessage(topic: string, payload: Buffer) {
+  private async handleMessage(topic: string, rawPayload: Buffer) {
     const isResolution = topic.startsWith('__res');
     const isInvocation = topic.startsWith('__req');
 
-    console.log('RAW', topic, payload);
+    console.log('RAW', topic, rawPayload);
 
-    let message: Partial<ParsedMessage> = { topic };
+    let payload: ObjectPayload;
 
     try {
-      message.payload = JSON.parse(payload.toString());
+      payload = JSON.parse(rawPayload.toString());
     } catch (e) {
       console.error('UNSUPPORTED PAYLOAD');
       return;
     }
+
+    let message: ParsedMessage = { topic, payload };
 
     if (isResolution) {
       for (const responder of this.responders.entries()) {
@@ -65,7 +74,7 @@ export default class Client implements ClientBase {
             break;
           }
 
-          resolver(unwrapData(payload));
+          resolver(message.payload);
           return;
         }
       }
@@ -76,7 +85,8 @@ export default class Client implements ClientBase {
     if (isInvocation) {
       for (const handler of this.handlers.entries()) {
         const reqPattern = getReqTopic(handler[0]);
-        const resolver = handler[1];
+        const resolver = handler[1].handler;
+        const params = handler[1].params;
 
         const isMatched = mqttMatch(reqPattern, topic);
 
@@ -87,12 +97,20 @@ export default class Client implements ClientBase {
             break;
           }
 
+          const pubData: PublicationData = {
+            params: extractPathParams(topic, params),
+          };
+
+          if (message.payload.data !== undefined) {
+            pubData.data = message.payload.data;
+          }
+
           console.log('MESSAGE', topic, message);
-          const result = await resolver(message.payload!.data);
+          const result = await resolver(pubData);
           const marked = markData(result);
           const envelope = envelopeData(marked);
           const resTopic = convertReqToResTopic(topic);
-          const idResTopic = getIdTopic(resTopic, message.payload!.id);
+          const idResTopic = getIdTopic(resTopic, message.payload.id);
 
           console.log('SEND RESULT', idResTopic, result);
 
@@ -107,7 +125,8 @@ export default class Client implements ClientBase {
 
     for (const listener of this.listeners.entries()) {
       const pattern = listener[0];
-      const handler = listener[1];
+      const handler = listener[1].handler;
+      const params = listener[1].params;
 
       console.log('CHECK MATCH', pattern, topic);
 
@@ -120,12 +139,24 @@ export default class Client implements ClientBase {
           break;
         }
 
+        const pubData: PublicationData = {
+          params: extractPathParams(topic, params),
+        };
+
+        if (message.payload.data !== undefined) {
+          pubData.data = message.payload.data;
+        }
+
         console.log('MESSAGE', topic, message);
-        handler(message.payload!.data);
+        handler(pubData);
         this.persisted.add(message as ParsedMessage);
         return;
       }
     }
+
+    const isDuplicated = this.persisted.has(message as ParsedMessage);
+
+    if (isDuplicated) return;
 
     console.log('BUFFERING', topic, payload);
 
@@ -155,22 +186,36 @@ export default class Client implements ClientBase {
     for (const handler of handlers) {
       const requestTopic = getReqTopic(handler.fullPattern);
 
-      this.handlers.set(handler.fullPattern, handler.handler);
-      await this.mClient.subscribeAsync(requestTopic, handler.options);
+      const fullPattern = wilcardParams(handler.fullPattern);
+      const fullReqPattern = wilcardParams(requestTopic);
+      handler.params = mapParams(requestTopic);
 
-      // TODO: Do we need to buffer handler messages?
+      this.handlers.set(fullPattern, handler);
+
+      console.log('SUBSCRIBE', fullReqPattern, handler.options);
+      await this.mClient.subscribeAsync(fullReqPattern, handler.options);
     }
 
     for (const listener of listeners) {
-      this.listeners.set(listener.fullPattern, listener.handler);
+      const fullPattern = wilcardParams(listener.fullPattern);
+      listener.params = mapParams(listener.fullPattern);
+
+      this.listeners.set(fullPattern, listener);
+
+      console.log('SUBSCRIBE', listener.fullPattern, listener.options);
       await this.mClient.subscribeAsync(listener.fullPattern, listener.options);
 
       for (const message of this.buffered.values()) {
         const isMatched = mqttMatch(listener.fullPattern, message.topic);
 
         if (isMatched) {
+          const pubData: PublicationData = {
+            data: message.payload.data,
+            params: extractPathParams(message.topic, listener.params),
+          };
+
           console.log('BUFFERED MESSAGE', message.topic, message.payload);
-          listener.handler(message.payload);
+          listener.handler(pubData);
           this.buffered.delete(message);
         }
       }
@@ -185,7 +230,13 @@ export default class Client implements ClientBase {
     this.responders.set(resTopic, handler);
   }
 
-  public getAgent(route?: string, opts?: mqtt.IClientPublishOptions): Agent {
+  // TODO: Make overrides with 2 and 3 arguments so the base is optional
+  public getAgent(route?: string, base?: Nullable<Agent>, opts?: mqtt.IClientPublishOptions): Agent {
+    if (base) {
+      const baseRoute = base.getRoute();
+      return new Agent(this, `${baseRoute}/${route}`, opts);
+    }
+
     return new Agent(this, route, opts);
   }
 
