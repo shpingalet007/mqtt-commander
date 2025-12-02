@@ -1,8 +1,8 @@
 import {IClientSubscribeOptions, IClientSubscribeProperties} from "mqtt";
 
-export interface PublicationData {
+export interface PublicationData<T = any> {
   params: Record<string, string>,
-  data?: any
+  data?: T
 }
 
 export interface ParamMap {

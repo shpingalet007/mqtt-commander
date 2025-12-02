@@ -202,8 +202,8 @@ export default class Client implements ClientBase {
 
       this.listeners.set(fullPattern, listener);
 
-      console.log('SUBSCRIBE', listener.fullPattern, listener.options);
-      await this.mClient.subscribeAsync(listener.fullPattern, listener.options);
+      console.log('SUBSCRIBE', fullPattern, listener.options);
+      await this.mClient.subscribeAsync(fullPattern, listener.options);
 
       for (const message of this.buffered.values()) {
         const isMatched = mqttMatch(listener.fullPattern, message.topic);
