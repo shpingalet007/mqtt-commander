@@ -1,45 +1,57 @@
 export default class ObjectedSet<T> {
-  private set: Set<string>;
+  protected _static = this.constructor as typeof ObjectedSet<T>;
+  protected set: Set<string>;
 
   constructor() {
     this.set = new Set();
   }
 
-  public add(message: T): this {
-    this.set.add(JSON.stringify(message));
+  public add(value: T): this {
+    this.set.add(this._static.wrap(value));
     return this;
   }
 
   public values(): IterableIterator<T> {
     const stringIterator = this.set.values();
     return this.getIterator<T>(stringIterator, (item) => (
-      JSON.parse(item)
+      this._static.unwrap(item)
     ));
   }
 
   public entries(): IterableIterator<[T, T]> {
     const stringIterator = this.set.entries();
     return this.getIterator<[T, T]>(stringIterator, (item) => (
-      [JSON.parse(item[0]), JSON.parse(item[1])]
+      [this._static.unwrap(item[0]), this._static.unwrap(item[1])]
     ));
   }
 
-  public delete(message: T): boolean {
-    return this.set.delete(JSON.stringify(message));
+  public delete(value: T): boolean {
+    return this.set.delete(this._static.wrap(value));
   }
 
-  public has(message: T): boolean {
-    return this.set.has(JSON.stringify(message));
+  public has(value: T): boolean {
+    return this.set.has(this._static.wrap(value));
+  }
+
+  public clear() {
+    this.set.clear();
   }
 
   private getIterator<P>(originalIterator: SetIterator<any>, mapper: (value: string) => P) {
     function* iterator(): IterableIterator<P> {
       for (const item of originalIterator) {
-        // Parse the JSON string back into the object T
         yield mapper(item) as P;
       }
     }
 
     return iterator();
+  }
+
+  protected static wrap(value: any): string {
+    return JSON.stringify(value);
+  }
+
+  protected static unwrap(value: string): any {
+    return JSON.parse(value);
   }
 }
