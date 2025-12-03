@@ -1,5 +1,5 @@
 import EventEmitter from "node:events";
-import mqtt, {IConnackPacket} from "mqtt";
+import mqtt, {ErrorWithReasonCode, IConnackPacket} from "mqtt";
 import mqttMatch from "mqtt-match";
 import Agent from "./agent";
 import ObjectedSet from "../utils/objected-set";
@@ -39,10 +39,20 @@ export default class Client implements ClientBase {
 
     this.mClient.on('message', this.handleMessage.bind(this));
     this.mClient.on('connect', this.handleConnect.bind(this));
+    this.mClient.on('end', this.handleEnd.bind(this));
+    this.mClient.on('error', this.handleError.bind(this));
   }
 
   private handleConnect(connection: IConnackPacket) {
     this.events.emit('connected', connection);
+  }
+
+  private handleEnd() {
+    this.events.emit('disconnect');
+  }
+
+  private handleError(err?: Error | ErrorWithReasonCode) {
+    this.events.emit('error', err);
   }
 
   private async handleMessage(topic: string, rawPayload: Buffer) {
@@ -184,6 +194,17 @@ export default class Client implements ClientBase {
     });
   }
 
+  private whenGracefullyClosed() {
+    const needGracefulClose = this.events.listenerCount('grace-close-start');
+
+    if (!needGracefulClose) return Promise.resolve();
+
+    return new Promise<void>((resolve) => {
+      this.events.emit('grace-close-start');
+      this.events.on('grace-close-finish', () => resolve());
+    });
+  }
+
   public static async connect(url: string, opts?: mqtt.IClientOptions): Promise<Client> {
     const client = new Client(url, opts);
 
@@ -257,5 +278,45 @@ export default class Client implements ClientBase {
 
   public getMqttClient() {
     return this.mClient;
+  }
+
+  public onDisconnect(handler: () => void) {
+    this.events.on('disconnect', handler);
+  }
+
+  public onError(handler: (err: Error | ErrorWithReasonCode) => void) {
+    this.events.on('error', handler);
+  }
+
+  public beforeDisconnect(handler: () => Promise<void> | void) {
+    this.events.removeAllListeners('grace-close-start');
+    this.events.on('grace-close-start', async () => {
+      await handler();
+      this.events.emit('grace-close-finish');
+    });
+  }
+
+  public async close(graceful = true) {
+    if (graceful) {
+      await this.whenGracefullyClosed();
+    }
+
+    await this.mClient.endAsync();
+    this.events.removeAllListeners();
+    this.mClient.removeAllListeners();
+
+    this.persisted.clear();
+    this.handlers.clear();
+    this.listeners.clear();
+    this.responders.clear();
+    this.buffered.clear();
+
+    // TODO: Clean debounce timers
+    this.debounced.clear();
+  }
+
+  public async kill() {
+    this.mClient.stream.end();
+    await this.close(false);
   }
 }
