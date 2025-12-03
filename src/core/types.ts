@@ -21,6 +21,10 @@ export interface ParsedMessage {
   payload: ObjectPayload;
 }
 
+export interface CommanderSubscribeOptions extends IClientSubscribeOptions, IClientSubscribeProperties {
+  debounce?: number;
+}
+
 export type ResponderHandler = (data: any) => void;
 export type ListenerHandler = (pub: PublicationData) => void;
 export type InvocationHandler = (pub: PublicationData) => Promise<any> | any;

@@ -15,6 +15,7 @@ import {
   PublicationData, ResponderHandler
 } from "./types";
 import {extractPathParams, mapParams, wilcardParams} from "./topic-params";
+import {clearTimeout} from "node:timers";
 
 abstract class ClientBase {
   abstract use(route: string, router: Router): void;
@@ -31,6 +32,7 @@ export default class Client implements ClientBase {
   private readonly responders: Map<string, ResponderHandler> = new Map();
   private readonly buffered: ObjectedSet<ParsedMessage> = new ObjectedSet();
   private readonly persisted: ObjectedSet<ParsedMessage> = new PersistentSet(Client.PersistedCleanAfter);
+  private readonly debounced: Map<string, NodeJS.Timeout> = new Map();
 
   private constructor(url: string, opts?: mqtt.IClientOptions) {
     this.mClient = mqtt.connect(url, opts);
@@ -127,6 +129,7 @@ export default class Client implements ClientBase {
       const pattern = listener[0];
       const handler = listener[1].handler;
       const params = listener[1].params;
+      const options = listener[1].options;
 
       console.log('CHECK MATCH', pattern, topic);
 
@@ -148,7 +151,19 @@ export default class Client implements ClientBase {
         }
 
         console.log('MESSAGE', topic, message);
-        handler(pubData);
+
+        if (options?.debounce) {
+          const oldDebouncer = this.debounced.get(topic);
+          this.debounced.delete(topic);
+
+          clearTimeout(oldDebouncer);
+
+          const debouncer = setTimeout(() => handler(pubData), options.debounce);
+          this.debounced.set(topic, debouncer);
+        } else {
+          handler(pubData);
+        }
+
         this.persisted.add(message as ParsedMessage);
         return;
       }

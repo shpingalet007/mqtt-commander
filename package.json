@@ -1,6 +1,6 @@
 {
   "name": "mqtt-commander",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "MQTT messaging module with RPC and PUB/SUB",
   "license": "LGPL-3.0-or-later",
   "repository": {

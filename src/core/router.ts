@@ -1,4 +1,9 @@
-import {InvocationHandler, ListenerHandler, MqttClientSubscribeOptions} from "./types";
+import {
+  CommanderSubscribeOptions,
+  InvocationHandler,
+  ListenerHandler,
+  MqttClientSubscribeOptions,
+} from "./types";
 
 export interface PatternParams {
   name: string;
@@ -8,14 +13,14 @@ export interface PatternParams {
 export interface ListenerSubscription {
   pattern: string;
   handler: ListenerHandler;
-  options?: MqttClientSubscribeOptions,
+  options?: CommanderSubscribeOptions,
   params?: PatternParams[],
 }
 
 export interface HandlerSubscription {
   pattern: string;
   handler: InvocationHandler;
-  options?: MqttClientSubscribeOptions,
+  options?: CommanderSubscribeOptions,
   params?: PatternParams[],
 }
 
@@ -37,21 +42,21 @@ export default class Router implements RouterBase {
   private readonly listenerRoutes: ListenerSubscription[] = [];
   private readonly handlerRoutes: HandlerSubscription[] = [];
 
-  private readonly defaultOpts?: MqttClientSubscribeOptions;
+  private readonly defaultOpts?: CommanderSubscribeOptions;
 
-  constructor(opts?: MqttClientSubscribeOptions) {
+  constructor(opts?: CommanderSubscribeOptions) {
     this.defaultOpts = opts;
   }
 
-  public on(pattern: string, handler: ListenerHandler, opts?: MqttClientSubscribeOptions) {
-    const options = { ...this.defaultOpts, ...opts };
+  public on(pattern: string, handler: ListenerHandler, opts?: CommanderSubscribeOptions) {
+    const options = { ...this.defaultOpts!, ...opts };
     const route: ListenerSubscription = { pattern, handler, options };
 
     this.listenerRoutes.push(route);
   }
 
-  public handle(pattern: string, handler: InvocationHandler, opts?: MqttClientSubscribeOptions) {
-    const options = { ...this.defaultOpts, ...opts };
+  public handle(pattern: string, handler: InvocationHandler, opts?: CommanderSubscribeOptions) {
+    const options = { ...this.defaultOpts!, ...opts };
     const route: HandlerSubscription = { pattern, handler, options };
 
     this.handlerRoutes.push(route);
