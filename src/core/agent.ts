@@ -31,7 +31,7 @@ export default class Agent {
     const envelope = envelopeData(marked);
     const prepOpts = { ...this.mSubOpts, ...options };
 
-    console.log('PUBLISH', fullTopic, message, prepOpts);
+    //console.log('PUBLISH', fullTopic, message, prepOpts);
     return this.mClient.publishAsync(fullTopic, envelope, prepOpts);
   }
 
@@ -56,7 +56,7 @@ export default class Agent {
 
     const idResTopic = getIdTopic(resTopic, marked.id);
 
-    console.log('SUBSCRIBING TO', idResTopic);
+    //console.log('SUBSCRIBING TO', idResTopic);
     await this.mClient.subscribeAsync(idResTopic, prepSubOpts);
 
     const responsePromise = new Promise<T>((resolve, reject) => {
@@ -71,7 +71,7 @@ export default class Agent {
       });
     });
 
-    console.log('INVOKING', reqTopic, envelope, prepPubOpts);
+    //console.log('INVOKING', reqTopic, envelope, prepPubOpts);
     await this.mClient.publishAsync(reqTopic, envelope, prepPubOpts);
 
     return responsePromise;

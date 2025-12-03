@@ -49,7 +49,7 @@ export default class Client implements ClientBase {
     const isResolution = topic.startsWith('__res');
     const isInvocation = topic.startsWith('__req');
 
-    console.log('RAW', topic, rawPayload);
+    //console.log('RAW', topic, rawPayload);
 
     let payload: ObjectPayload;
 
@@ -107,14 +107,14 @@ export default class Client implements ClientBase {
             pubData.data = message.payload.data;
           }
 
-          console.log('MESSAGE', topic, message);
+          //console.log('MESSAGE', topic, message);
           const result = await resolver(pubData);
           const marked = markData(result);
           const envelope = envelopeData(marked);
           const resTopic = convertReqToResTopic(topic);
           const idResTopic = getIdTopic(resTopic, message.payload.id);
 
-          console.log('SEND RESULT', idResTopic, result);
+          //console.log('SEND RESULT', idResTopic, result);
 
           this.mClient.publish(idResTopic, envelope);
           this.persisted.add(message as ParsedMessage);
@@ -131,7 +131,7 @@ export default class Client implements ClientBase {
       const params = listener[1].params;
       const options = listener[1].options;
 
-      console.log('CHECK MATCH', pattern, topic);
+      //console.log('CHECK MATCH', pattern, topic);
 
       const isMatched = mqttMatch(pattern, topic);
 
@@ -150,7 +150,7 @@ export default class Client implements ClientBase {
           pubData.data = message.payload.data;
         }
 
-        console.log('MESSAGE', topic, message);
+        //console.log('MESSAGE', topic, message);
 
         if (options?.debounce) {
           const oldDebouncer = this.debounced.get(topic);
@@ -173,7 +173,7 @@ export default class Client implements ClientBase {
 
     if (isDuplicated) return;
 
-    console.log('BUFFERING', topic, payload);
+    //console.log('BUFFERING', topic, payload);
 
     this.buffered.add(message as ParsedMessage);
   }
@@ -189,7 +189,7 @@ export default class Client implements ClientBase {
 
     const {sessionPresent} = await client.whenConnected();
 
-    console.log('Connected with session?', sessionPresent);
+    //console.log('Connected with session?', sessionPresent);
 
     return client;
   }
@@ -207,7 +207,7 @@ export default class Client implements ClientBase {
 
       this.handlers.set(fullPattern, handler);
 
-      console.log('SUBSCRIBE', fullReqPattern, handler.options);
+      //console.log('SUBSCRIBE', fullReqPattern, handler.options);
       await this.mClient.subscribeAsync(fullReqPattern, handler.options);
     }
 
@@ -217,7 +217,7 @@ export default class Client implements ClientBase {
 
       this.listeners.set(fullPattern, listener);
 
-      console.log('SUBSCRIBE', fullPattern, listener.options);
+      //console.log('SUBSCRIBE', fullPattern, listener.options);
       await this.mClient.subscribeAsync(fullPattern, listener.options);
 
       for (const message of this.buffered.values()) {
@@ -229,7 +229,7 @@ export default class Client implements ClientBase {
             params: extractPathParams(message.topic, listener.params),
           };
 
-          console.log('BUFFERED MESSAGE', message.topic, message.payload);
+          //console.log('BUFFERED MESSAGE', message.topic, message.payload);
           listener.handler(pubData);
           this.buffered.delete(message);
         }
@@ -240,7 +240,7 @@ export default class Client implements ClientBase {
   public async handleResponse(topic: string, id: string, handler: ListenerHandler) {
     const resTopic = getResTopic(`${topic}/${id}`);
 
-    console.log('WAITING RESPONSE ON', resTopic);
+    //console.log('WAITING RESPONSE ON', resTopic);
 
     this.responders.set(resTopic, handler);
   }
