@@ -12,7 +12,7 @@ export function extractPathParams(path: string, map?: ParamMap[]) {
 }
 
 export function wilcardParams(pattern: string) {
-  return pattern.replace(/:([^\/$+#]+)/g, '+');
+  return pattern.replace(/\/:([^\/$+#]+)/g, '/+');
 }
 
 export function mapParams(pattern: string): ParamMap[] {
